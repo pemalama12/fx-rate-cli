@@ -138,6 +138,13 @@ test("history cache union across currencies", async () => {
   assert.equal(b.rates.USD, 1.08);
 });
 
+test("historyCacheFile blocks path traversal in base", () => {
+  assert.throws(() => historyCacheFile("/tmp/cache", "../etc", "2026-10-26"), /base must be/);
+  assert.throws(() => historyCacheFile("/tmp/cache", "eur/../x", "2026-10-26"), /base must be/);
+  assert.throws(() => historyCacheFile("/tmp/cache", "", "2026-10-26"), /base must be/);
+  assert.equal(historyCacheFile("/tmp/cache", "eur", "2026-10-26"), "/tmp/cache/EUR-2026-10-26.json");
+});
+
 test("historyCacheFile rejects bad date", () => {
   assert.throws(() => historyCacheFile("/tmp", "EUR", "2026/10/20"), /dateStr must be/);
 });

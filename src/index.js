@@ -105,9 +105,10 @@ export function validateFlags({ watchSecs = 0, date = null } = {}) {
 
 // --- disk cache for historical rates ---
 export function historyCacheFile(dir, base, dateStr) {
-  const safeBase = String(base).replace(/[^a-z]/gi, "_").toUpperCase();
+  const normalized = String(base).trim().toUpperCase();
+  if (!/^[A-Z]{2,5}$/.test(normalized)) throw new Error("base must be a 2-5 letter currency code");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) throw new Error("dateStr must be YYYY-MM-DD");
-  return `${dir}/${safeBase}-${dateStr}.json`;
+  return `${dir}/${normalized}-${dateStr}.json`;
 }
 
 export async function readHistoryCache(dir, base, dateStr) {
