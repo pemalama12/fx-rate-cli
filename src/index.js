@@ -85,7 +85,7 @@ export function formatRates(data) {
   const date = data.date;
   const lines = [`${base} on ${date}:`];
   for (const [cur, rate] of Object.entries(data.rates || {})) {
-    lines.push(`  ${cur}: ${rate}`);
+    lines.push(`  ${cur}: ${rate === undefined ? "n/a" : rate}`);
   }
   return lines.join("\n");
 }

@@ -92,6 +92,11 @@ test("formatRates renders base/date and rates", () => {
   assert.match(out, /USD: 1.08/);
 });
 
+test("formatRates marks missing rates as n/a", () => {
+  const out = formatRates({ base: "EUR", date: "2026-10-25", rates: { USD: undefined } });
+  assert.match(out, /USD: n\/a/);
+});
+
 test("parsePositiveInt", () => {
   assert.equal(parsePositiveInt("30", 5), 30);
   assert.equal(parsePositiveInt("0", 5), 5);
