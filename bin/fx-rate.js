@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { fetchRates, formatRates, convert, parsePositiveInt, validateFlags, defaultHistoryCacheDir, listHistoryCache, fetchHistoricalRate, clearCache } from "../src/index.js";
+import { fetchRates, formatRates, convert, parsePositiveInt, validateFlags, parseAmounts, defaultHistoryCacheDir, listHistoryCache, fetchHistoricalRate, clearCache } from "../src/index.js";
 
 const args = process.argv.slice(2);
 const json = args.includes("--json");
@@ -17,7 +17,10 @@ const filtered = args.filter((a) => !a.startsWith("--") );
 const base = (filtered[0] || "EUR").toUpperCase();
 const targets = (filtered[1] || "USD").split(",").map((s) => s.trim()).filter(Boolean);
 const amountArg = args.find((a) => a.startsWith("--amount="));
-const amount = amountArg ? Number(amountArg.split("=")[1]) : null;
+const amountFlag = amountArg ? amountArg.split("=")[1] : null;
+const parsedAmounts = parseAmounts(filtered.slice(2), amountFlag);
+if (!parsedAmounts.ok) { console.error(`error: ${parsedAmounts.error}`); process.exit(2); }
+const amounts = parsedAmounts.amounts;
 
 const err = validateFlags({ watchSecs: watchSecs || intervalSecs, date });
 if (err) { console.error(`error: ${err}`); process.exit(1); }
@@ -39,11 +42,12 @@ Examples:
   fx-rate EUR USD
   fx-rate USD "EUR,GBP,BRL" --json
   fx-rate EUR USD --amount=100
+  fx-rate EUR USD 100 250
   fx-rate EUR USD --date=2026-10-20
   fx-rate EUR USD --watch=30 --count=5
 
 Options:
-  --amount=N       Convert N units of BASE into TARGETS
+  --amount=N       Convert N units of BASE into TARGETS (also: positional amounts)
   --date=YYYY-MM-DD Historical rate on that date (cached on disk)
   --watch[=SECS]   Refresh continuously (default 30s)
   --interval=SECS  Alias for --watch=SECS
@@ -78,10 +82,11 @@ async function tick() {
     else console.log(`${data.base} on ${data.date}: ${Object.entries(data.rates).map(([k, v]) => `${k}=${v}`).join("  ")}`);
   } else {
     const data = await fetchRates(base, targets);
-    if (amount !== null) {
+    if (amounts.length > 0) {
       for (const t of targets) {
         const rate = data.rates[t];
-        if (rate !== undefined) console.log(`${amount} ${base} = ${convert(amount, rate).toFixed(4)} ${t}`);
+        if (rate === undefined) continue;
+        for (const a of amounts) console.log(`${a} ${base} = ${convert(a, rate).toFixed(4)} ${t}`);
       }
     } else {
       if (json) console.log(JSON.stringify(data, null, 2));

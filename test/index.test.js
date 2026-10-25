@@ -8,6 +8,7 @@ import {
   resolveCurrency,
   fetchRates,
   convert,
+  parseAmounts,
   formatRates,
   parsePositiveInt,
   validateFlags,
@@ -203,4 +204,17 @@ test("listHistoryCache enumerates", async () => {
   assert.deepEqual(await listHistoryCache(dir), []);
   await writeHistoryCache(dir, "eur", "2026-10-20", { USD: 1.08, BRL: 5.4 });
   assert.deepEqual(await listHistoryCache(dir), [{ base: "EUR", date: "2026-10-20", currencies: ["BRL", "USD"] }]);
+});
+
+test("parseAmounts handles positional, comma and --amount= forms", () => {
+  assert.deepEqual(parseAmounts([], null), { ok: true, amounts: [] });
+  assert.deepEqual(parseAmounts(["100", "250"], null), { ok: true, amounts: [100, 250] });
+  assert.deepEqual(parseAmounts(["100,250"], null), { ok: true, amounts: [100, 250] });
+  assert.deepEqual(parseAmounts([], "50"), { ok: true, amounts: [50] });
+  assert.deepEqual(parseAmounts(["100"], "50"), { ok: true, amounts: [100, 50] });
+});
+
+test("parseAmounts rejects invalid values fail-fast", () => {
+  assert.deepEqual(parseAmounts(["abc"], null), { ok: false, error: "invalid amount: abc" });
+  assert.deepEqual(parseAmounts(["-5"], null), { ok: false, error: "invalid amount: -5" });
 });

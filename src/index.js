@@ -119,6 +119,29 @@ export function validateFlags({ watchSecs = 0, date = null } = {}) {
   return null;
 }
 
+/**
+ * Parse user-supplied amounts (positional extras + legacy --amount=).
+ * Returns { ok:true, amounts:[...] } or { ok:false, error }.
+ * Fail-fast: invalid values are reported before any fetch happens.
+ */
+export function parseAmounts(positionalExtras = [], amountFlag = null) {
+  const raw = [...positionalExtras];
+  if (amountFlag !== null && amountFlag !== undefined) raw.push(String(amountFlag));
+  if (raw.length === 0) return { ok: true, amounts: [] };
+  const amounts = [];
+  for (const item of String(raw.join(",")).split(",")) {
+    const value = item.trim();
+    if (value === "") continue;
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 0) {
+      return { ok: false, error: `invalid amount: ${value}` };
+    }
+    amounts.push(n);
+  }
+  if (amounts.length === 0) return { ok: true, amounts: [] };
+  return { ok: true, amounts };
+}
+
 // --- disk cache for historical rates ---
 export function historyCacheFile(dir, base, dateStr) {
   const normalized = String(base).trim().toUpperCase();
