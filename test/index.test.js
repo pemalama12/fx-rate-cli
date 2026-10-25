@@ -109,6 +109,32 @@ test("validateFlags", () => {
   assert.equal(validateFlags({ watchSecs: 5 }), null);
 });
 
+test("fetchWithRetry applies jitter within bounds", async () => {
+  let n = 0;
+  const fetchImpl = async () => {
+    n++;
+    if (n <= 2) return { ok: false, status: 500, statusText: "Err", headers: { get: () => null }, json: async () => ({}) };
+    return { ok: true, status: 200, statusText: "OK", json: async () => ({}) };
+  };
+  const sleeps = [];
+  await fetchWithRetry(fetchImpl, "u", {}, { sleepImpl: (ms) => { sleeps.push(ms); return Promise.resolve(); }, retryBaseMs: 1000, jitter: true });
+  assert.equal(sleeps.length, 2);
+  for (const ms of sleeps) assert.ok(ms >= 800 && ms <= 2400, `out of range: ${ms}`);
+  assert.ok(sleeps[0] !== 1000 || sleeps[1] !== 2000, "jitter must perturb deterministic backoff");
+});
+
+test("fetchWithRetry jitter disabled keeps exact backoff", async () => {
+  let n = 0;
+  const fetchImpl = async () => {
+    n++;
+    if (n <= 2) return { ok: false, status: 500, statusText: "Err", headers: { get: () => null }, json: async () => ({}) };
+    return { ok: true, status: 200, statusText: "OK", json: async () => ({}) };
+  };
+  const sleeps = [];
+  await fetchWithRetry(fetchImpl, "u", {}, { sleepImpl: (ms) => { sleeps.push(ms); return Promise.resolve(); }, retryBaseMs: 1000, jitter: false });
+  assert.deepEqual(sleeps, [1000, 2000]);
+});
+
 test("fetchWithRetry honors Retry-After", async () => {
   let n = 0;
   const fetchImpl = async () => {
@@ -117,7 +143,7 @@ test("fetchWithRetry honors Retry-After", async () => {
     return { ok: true, status: 200, statusText: "OK", json: async () => ({}) };
   };
   const sleeps = [];
-  await fetchWithRetry(fetchImpl, "u", {}, { sleepImpl: (ms) => { sleeps.push(ms); return Promise.resolve(); } });
+  await fetchWithRetry(fetchImpl, "u", {}, { sleepImpl: (ms) => { sleeps.push(ms); return Promise.resolve(); }, jitter: false });
   assert.deepEqual(sleeps, [2000]);
 });
 

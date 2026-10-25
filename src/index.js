@@ -13,6 +13,7 @@ function sleep(ms) {
 export async function fetchWithRetry(fetchImpl, url, init, options = {}) {
   const retries = typeof options.retries === "number" ? options.retries : 3;
   const baseMs = typeof options.retryBaseMs === "number" ? options.retryBaseMs : 1000;
+  const jitter = options.jitter !== false;
   const sleepImpl = options.sleepImpl || sleep;
   let lastError;
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -22,7 +23,7 @@ export async function fetchWithRetry(fetchImpl, url, init, options = {}) {
     } catch (err) {
       lastError = err;
       if (attempt === retries) break;
-      await sleepImpl(baseMs * 2 ** attempt);
+      await sleepImpl(withJitter(baseMs * 2 ** attempt, jitter));
       continue;
     }
     if (res.ok) return res;
@@ -35,9 +36,14 @@ export async function fetchWithRetry(fetchImpl, url, init, options = {}) {
       const secs = Number(retryAfter);
       if (Number.isFinite(secs) && secs >= 0) waitMs = Math.min(secs * 1000, 60000);
     }
-    await sleepImpl(waitMs);
+    await sleepImpl(withJitter(waitMs, jitter));
   }
   throw lastError;
+}
+
+function withJitter(ms, jitter) {
+  if (!jitter) return ms;
+  return Math.round(ms * (0.8 + Math.random() * 0.4));
 }
 
 const cache = new Map();
