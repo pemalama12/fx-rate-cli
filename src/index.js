@@ -2,6 +2,16 @@
 
 const API_URL = "https://api.frankfurter.app";
 
+/**
+ * Build a Frankfurter request URL. All request URLs go through here so
+ * error paths never need to handle (or leak) query strings: failures
+ * report only host + HTTP status.
+ */
+export function buildFrankfurterUrl(path, params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return qs ? `${API_URL}${path}?${qs}` : `${API_URL}${path}`;
+}
+
 export function resolveCurrency(input) {
   return String(input || "").trim().toUpperCase();
 }
@@ -67,7 +77,7 @@ export async function fetchRates(base = "EUR", targets = ["USD"], fetchImpl = fe
     return cached.data;
   }
   if (cached) cache.delete(key);
-  const url = `${API_URL}/latest?from=${encodeURIComponent(base)}&to=${encodeURIComponent(targets.join(","))}`;
+  const url = buildFrankfurterUrl("/latest", { from: base, to: targets.join(",") });
   const res = await fetchWithRetry(fetchImpl, url, { headers: { accept: "application/json" } }, options);
   if (!res.ok) throw new Error(`Frankfurter request failed: ${res.status} ${res.statusText}`);
   const data = await res.json();
@@ -155,7 +165,7 @@ export async function fetchHistoricalRate(base, dateStr, targets = ["USD"], fetc
       return { base, date: dateStr, rates: out };
     }
   }
-  const url = `${API_URL}/${dateStr}?from=${encodeURIComponent(base)}&to=${encodeURIComponent(targets.join(","))}`;
+  const url = buildFrankfurterUrl(`/${dateStr}`, { from: base, to: targets.join(",") });
   const res = await fetchWithRetry(fetchImpl, url, { headers: { accept: "application/json" } }, options || {});
   if (!res.ok) throw new Error(`Frankfurter request failed: ${res.status} ${res.statusText}`);
   const data = await res.json();

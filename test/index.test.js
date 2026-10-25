@@ -86,6 +86,17 @@ test("fetchRates shares cache across case variants", async () => {
   assert.equal(calls, 1);
 });
 
+test("errors never include the request URL or query string", async () => {
+  const fetchImpl = async (url) => {
+    if (!String(url).includes("api.frankfurter.app")) throw new Error("wrong host: " + url);
+    return { ok: false, status: 500, statusText: "Oops", headers: { get: () => null }, json: async () => ({}) };
+  };
+  clearCache();
+  const err = await fetchRates("EUR", ["USD"], fetchImpl, { retries: 0 }).catch((e) => e);
+  assert.ok(err instanceof Error);
+  assert.doesNotMatch(err.message, /api\.frankfurter|\?|from=|to=/);
+});
+
 test("fetchRates throws on bad response", async () => {
   const fetchImpl = async () => ({ ok: true, status: 200, statusText: "OK", json: async () => ({}) });
   clearCache();
