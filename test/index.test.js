@@ -74,6 +74,18 @@ test("fetchRates defaults to a 100-entry LRU cache", async () => {
   assert.equal(calls, 102);
 });
 
+test("fetchRates shares cache across case variants", async () => {
+  let calls = 0;
+  const fetchImpl = async () => {
+    calls++;
+    return { ok: true, status: 200, statusText: "OK", json: async () => ({ base: "EUR", date: "2026-10-25", rates: { USD: 1.08 } }) };
+  };
+  clearCache();
+  await fetchRates("eur", ["usd"], fetchImpl);
+  await fetchRates("EUR", ["USD"], fetchImpl, { cacheTtlMs: 60000 });
+  assert.equal(calls, 1);
+});
+
 test("fetchRates throws on bad response", async () => {
   const fetchImpl = async () => ({ ok: true, status: 200, statusText: "OK", json: async () => ({}) });
   clearCache();
