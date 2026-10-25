@@ -1,0 +1,12 @@
+{
+  "name": "@yunaremaia/fx-rate-cli",
+  "version": "0.1.0",
+  "description": "Lightweight CLI to fetch foreign-exchange rates (Frankfurter, no API key).",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": { "fx-rate": "bin/fx-rate.js" },
+  "scripts": { "test": "node --test" },
+  "keywords": ["forex", "currency", "cli", "frankfurter"],
+  "license": "MIT",
+  "engines": { "node": ">=18" }
+}
