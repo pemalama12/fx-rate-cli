@@ -41,6 +41,39 @@ test("fetchRates returns rates and caches", async () => {
   assert.deepEqual(b, a);
 });
 
+test("fetchRates evicts the least recently used entry at the configured size", async () => {
+  let calls = 0;
+  const fetchImpl = async (url) => {
+    calls++;
+    const base = new URL(url).searchParams.get("from");
+    return { ok: true, status: 200, statusText: "OK", json: async () => ({ base, date: "2026-10-25", rates: { USD: 1 } }) };
+  };
+  clearCache();
+  const options = { cacheMaxSize: 2, cacheTtlMs: 60000 };
+  await fetchRates("EUR", ["USD"], fetchImpl, options);
+  await fetchRates("GBP", ["USD"], fetchImpl, options);
+  await fetchRates("EUR", ["USD"], fetchImpl, options);
+  await fetchRates("JPY", ["USD"], fetchImpl, options);
+  await fetchRates("GBP", ["USD"], fetchImpl, options);
+  assert.equal(calls, 4);
+});
+
+test("fetchRates defaults to a 100-entry LRU cache", async () => {
+  let calls = 0;
+  const fetchImpl = async () => {
+    calls++;
+    return { ok: true, status: 200, statusText: "OK", json: async () => ({ rates: { USD: 1 } }) };
+  };
+  clearCache();
+  for (let i = 0; i < 100; i++) {
+    await fetchRates(`C${String(i).padStart(3, "0")}`, ["USD"], fetchImpl);
+  }
+  await fetchRates("C000", ["USD"], fetchImpl);
+  await fetchRates("C100", ["USD"], fetchImpl);
+  await fetchRates("C001", ["USD"], fetchImpl);
+  assert.equal(calls, 102);
+});
+
 test("fetchRates throws on bad response", async () => {
   const fetchImpl = async () => ({ ok: true, status: 200, statusText: "OK", json: async () => ({}) });
   clearCache();

@@ -50,15 +50,24 @@ export async function fetchRates(base = "EUR", targets = ["USD"], fetchImpl = fe
   targets = (Array.isArray(targets) ? targets : [targets]).map(resolveCurrency).filter(Boolean);
   if (targets.length === 0) throw new Error("targets must be a non-empty array");
   const ttl = typeof options.cacheTtlMs === "number" ? options.cacheTtlMs : 60000;
+  const maxSize = typeof options.cacheMaxSize === "number" && Number.isFinite(options.cacheMaxSize)
+    ? Math.max(0, Math.floor(options.cacheMaxSize))
+    : 100;
   const key = cacheKey(base, targets);
   const cached = cache.get(key);
-  if (cached && Date.now() - cached.ts < ttl) return cached.data;
+  if (cached && Date.now() - cached.ts < ttl) {
+    cache.delete(key);
+    cache.set(key, cached);
+    return cached.data;
+  }
+  if (cached) cache.delete(key);
   const url = `${API_URL}/latest?from=${encodeURIComponent(base)}&to=${encodeURIComponent(targets.join(","))}`;
   const res = await fetchWithRetry(fetchImpl, url, { headers: { accept: "application/json" } }, options);
   if (!res.ok) throw new Error(`Frankfurter request failed: ${res.status} ${res.statusText}`);
   const data = await res.json();
   if (!data || typeof data.rates !== "object") throw new Error("Unexpected response from Frankfurter");
   cache.set(key, { ts: Date.now(), data });
+  while (cache.size > maxSize) cache.delete(cache.keys().next().value);
   return data;
 }
 
