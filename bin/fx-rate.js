@@ -22,6 +22,13 @@ const amount = amountArg ? Number(amountArg.split("=")[1]) : null;
 const err = validateFlags({ watchSecs: watchSecs || intervalSecs, date });
 if (err) { console.error(`error: ${err}`); process.exit(1); }
 
+if (args.includes("--version")) {
+  const { readFileSync } = await import("node:fs");
+  const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  console.log(`fx-rate-cli ${pkg.version}`);
+  process.exit(0);
+}
+
 if (args.includes("-h") || args.includes("--help")) {
   console.log(`fx-rate - fetch foreign-exchange rates (Frankfurter, no API key)
 
@@ -44,6 +51,7 @@ Options:
   --clear-cache    Wipe the on-disk history cache and exit
   --dump-cache     List cached historical rates and exit
   --json           Machine-readable JSON output
+  --version        Print version and exit
   -h, --help       Show this help
 `);
   process.exit(0);
