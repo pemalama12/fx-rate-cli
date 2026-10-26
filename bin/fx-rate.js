@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { fetchRates, formatRates, convert, parsePositiveInt, validateFlags, parseAmounts, parseRateOverride, defaultHistoryCacheDir, listHistoryCache, fetchHistoricalRate, clearCache } from "../src/index.js";
+import { fetchRates, formatRates, convert, parsePositiveInt, validateFlags, formatCliError, parseAmounts, parseRateOverride, defaultHistoryCacheDir, listHistoryCache, fetchHistoricalRate, clearCache } from "../src/index.js";
 
 const args = process.argv.slice(2);
 const json = args.includes("--json");
@@ -67,6 +67,13 @@ Options:
   --json           Machine-readable JSON output
   --version        Print version and exit
   -h, --help       Show this help
+
+Exit codes:
+  0                Success
+  1                API/network error or incompatible flags
+  2                Invalid amount or rate
+
+Unexpected stack traces indicate a bug worth reporting.
 `);
   process.exit(0);
 }
@@ -115,17 +122,22 @@ async function tick() {
 }
 
 const secs = watchSecs || intervalSecs;
-if (secs > 0) {
-  const { watchPrices } = await import("../src/index.js").then((m) => ({ watchPrices: m.watchPrices })).catch(() => ({ watchPrices: null }));
-  // inline watch loop to avoid import cycle
-  let t = 0;
-  const max = maxTicks > 0 ? maxTicks : Infinity;
-  while (t < max) {
-    t++;
+try {
+  if (secs > 0) {
+    const { watchPrices } = await import("../src/index.js").then((m) => ({ watchPrices: m.watchPrices })).catch(() => ({ watchPrices: null }));
+    // inline watch loop to avoid import cycle
+    let t = 0;
+    const max = maxTicks > 0 ? maxTicks : Infinity;
+    while (t < max) {
+      t++;
+      await tick();
+      if (t >= max) break;
+      await new Promise((r) => setTimeout(r, secs * 1000));
+    }
+  } else {
     await tick();
-    if (t >= max) break;
-    await new Promise((r) => setTimeout(r, secs * 1000));
   }
-} else {
-  await tick();
+} catch (error) {
+  console.error(formatCliError(error));
+  process.exitCode = 1;
 }

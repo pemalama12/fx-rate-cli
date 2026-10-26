@@ -119,6 +119,12 @@ export function validateFlags({ watchSecs = 0, date = null } = {}) {
   return null;
 }
 
+export function formatCliError(error) {
+  const rawMessage = error instanceof Error ? error.message : String(error ?? "Unknown error");
+  const message = rawMessage.split(/\r?\n/, 1)[0].trim();
+  return `error: ${message || "Unknown error"}`;
+}
+
 /**
  * Parse an explicit --rate=R override for offline / what-if conversions.
  * Returns { ok:true, rate } with rate null when unset, or { ok:false, error }.

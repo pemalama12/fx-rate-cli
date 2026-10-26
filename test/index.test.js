@@ -13,6 +13,7 @@ import {
   formatRates,
   parsePositiveInt,
   validateFlags,
+  formatCliError,
   clearCache,
   fetchWithRetry,
   historyCacheFile,
@@ -132,6 +133,12 @@ test("parsePositiveInt", () => {
 test("validateFlags", () => {
   assert.equal(validateFlags({ watchSecs: 5, date: "2026-10-25" }), "--watch and --date cannot be combined.");
   assert.equal(validateFlags({ watchSecs: 5 }), null);
+});
+
+test("formatCliError returns one clean line without a stack trace", () => {
+  assert.equal(formatCliError(new Error("Frankfurter request failed: 404 Not Found")), "error: Frankfurter request failed: 404 Not Found");
+  assert.equal(formatCliError(new Error("network failure\n    at fetchRates (src/index.js:1:1)")), "error: network failure");
+  assert.equal(formatCliError(null), "error: Unknown error");
 });
 
 test("fetchWithRetry applies jitter within bounds", async () => {
