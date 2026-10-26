@@ -187,8 +187,18 @@ export async function readHistoryCache(dir, base, dateStr) {
 }
 
 export async function writeHistoryCache(dir, base, dateStr, rates) {
-  const { mkdir, writeFile } = await import("node:fs/promises");
+  const { mkdir, writeFile, lstat } = await import("node:fs/promises");
+  // Defense in depth: never follow a symlinked cache path (XDG_CACHE_HOME attack).
+  try {
+    const st = await lstat(dir);
+    if (st.isSymbolicLink()) throw new Error("refusing to write through a symlinked cache dir");
+  } catch (err) {
+    if (err && err.code !== "ENOENT") throw err;
+  }
   await mkdir(dir, { recursive: true });
+  // Re-check after mkdir in case a symlink appeared (TOCTOU guard).
+  const st2 = await lstat(dir);
+  if (st2.isSymbolicLink()) throw new Error("refusing to write through a symlinked cache dir");
   await writeFile(historyCacheFile(dir, base, dateStr), JSON.stringify(rates));
 }
 

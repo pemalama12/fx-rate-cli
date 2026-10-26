@@ -252,3 +252,21 @@ test("fetchRates rejects oversized JSON bodies", async () => {
   assert.ok(err instanceof Error);
   assert.match(err.message, /response too large/i);
 });
+
+test("writeHistoryCache refuses to write through a symlinked cache dir", async () => {
+  const fs = await import("node:fs/promises");
+  const os = await import("node:os");
+  const path = await import("node:path");
+  const realDir = await fs.mkdtemp(path.join(os.tmpdir(), "fx-real-"));
+  const linkDir = path.join(os.tmpdir(), `fx-link-${Date.now()}`);
+  try { await fs.symlink(realDir, linkDir); } catch (e) { return; } // skip if no symlink support
+  try {
+    await assert.rejects(
+      writeHistoryCache(linkDir, "EUR", "2026-10-23", { USD: 1.1 }),
+      /symlink/i,
+    );
+  } finally {
+    await fs.rm(linkDir, { recursive: true, force: true });
+    await fs.rm(realDir, { recursive: true, force: true });
+  }
+});
