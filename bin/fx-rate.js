@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { fetchRates, formatRates, convert, parsePositiveInt, validateFlags, parseAmounts, defaultHistoryCacheDir, listHistoryCache, fetchHistoricalRate, clearCache } from "../src/index.js";
+import { fetchRates, formatRates, convert, parsePositiveInt, validateFlags, parseAmounts, parseRateOverride, defaultHistoryCacheDir, listHistoryCache, fetchHistoricalRate, clearCache } from "../src/index.js";
 
 const args = process.argv.slice(2);
 const json = args.includes("--json");
@@ -21,6 +21,14 @@ const amountFlag = amountArg ? amountArg.split("=")[1] : null;
 const parsedAmounts = parseAmounts(filtered.slice(2), amountFlag);
 if (!parsedAmounts.ok) { console.error(`error: ${parsedAmounts.error}`); process.exit(2); }
 const amounts = parsedAmounts.amounts;
+const rateArg = args.find((a) => a.startsWith("--rate="));
+const parsedRate = parseRateOverride(rateArg ? rateArg.split("=")[1] : null);
+if (!parsedRate.ok) { console.error(`error: ${parsedRate.error}`); process.exit(2); }
+const rateOverride = parsedRate.rate;
+if (rateOverride !== null && targets.length > 1) {
+  console.error("error: --rate applies to a single target only");
+  process.exit(2);
+}
 
 const err = validateFlags({ watchSecs: watchSecs || intervalSecs, date });
 if (err) { console.error(`error: ${err}`); process.exit(1); }
@@ -43,11 +51,13 @@ Examples:
   fx-rate USD "EUR,GBP,BRL" --json
   fx-rate EUR USD --amount=100
   fx-rate EUR USD 100 250
+  fx-rate EUR USD --rate=1.1 --amount=100
   fx-rate EUR USD --date=2026-10-20
   fx-rate EUR USD --watch=30 --count=5
 
 Options:
   --amount=N       Convert N units of BASE into TARGETS (also: positional amounts)
+  --rate=R         Override the rate (single target only; skips the network)
   --date=YYYY-MM-DD Historical rate on that date (cached on disk)
   --watch[=SECS]   Refresh continuously (default 30s)
   --interval=SECS  Alias for --watch=SECS
@@ -80,6 +90,15 @@ async function tick() {
     const data = await fetchHistoricalRate(base, date, targets);
     if (json) console.log(JSON.stringify(data, null, 2));
     else console.log(`${data.base} on ${data.date}: ${Object.entries(data.rates).map(([k, v]) => `${k}=${v}`).join("  ")}`);
+  } else if (rateOverride !== null) {
+    const t = targets[0];
+    if (amounts.length > 0) {
+      for (const a of amounts) console.log(`${a} ${base} = ${convert(a, rateOverride).toFixed(4)} ${t} (override)`);
+    } else if (json) {
+      console.log(JSON.stringify({ base, target: t, rate: rateOverride, source: "override" }, null, 2));
+    } else {
+      console.log(`${base} on override: ${t}=${rateOverride}`);
+    }
   } else {
     const data = await fetchRates(base, targets);
     if (amounts.length > 0) {

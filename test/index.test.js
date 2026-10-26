@@ -9,6 +9,7 @@ import {
   fetchRates,
   convert,
   parseAmounts,
+  parseRateOverride,
   formatRates,
   parsePositiveInt,
   validateFlags,
@@ -217,4 +218,17 @@ test("parseAmounts handles positional, comma and --amount= forms", () => {
 test("parseAmounts rejects invalid values fail-fast", () => {
   assert.deepEqual(parseAmounts(["abc"], null), { ok: false, error: "invalid amount: abc" });
   assert.deepEqual(parseAmounts(["-5"], null), { ok: false, error: "invalid amount: -5" });
+});
+
+test("parseRateOverride accepts a positive finite rate", () => {
+  assert.deepEqual(parseRateOverride("1.234"), { ok: true, rate: 1.234 });
+  assert.deepEqual(parseRateOverride(null), { ok: true, rate: null });
+});
+
+test("parseRateOverride rejects garbage fail-fast", () => {
+  for (const bad of ["abc", "-2", "0", "NaN", ""]) {
+    const r = parseRateOverride(bad);
+    assert.equal(r.ok, false, bad);
+    assert.match(r.error, /invalid rate/);
+  }
 });

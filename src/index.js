@@ -120,6 +120,19 @@ export function validateFlags({ watchSecs = 0, date = null } = {}) {
 }
 
 /**
+ * Parse an explicit --rate=R override for offline / what-if conversions.
+ * Returns { ok:true, rate } with rate null when unset, or { ok:false, error }.
+ */
+export function parseRateOverride(raw) {
+  if (raw === null || raw === undefined) return { ok: true, rate: null };
+  const n = Number(String(raw).trim());
+  if (!Number.isFinite(n) || n <= 0) {
+    return { ok: false, error: `invalid rate: ${raw}` };
+  }
+  return { ok: true, rate: n };
+}
+
+/**
  * Parse user-supplied amounts (positional extras + legacy --amount=).
  * Returns { ok:true, amounts:[...] } or { ok:false, error }.
  * Fail-fast: invalid values are reported before any fetch happens.
