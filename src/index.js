@@ -80,7 +80,12 @@ export async function fetchRates(base = "EUR", targets = ["USD"], fetchImpl = fe
   const url = buildFrankfurterUrl("/latest", { from: base, to: targets.join(",") });
   const res = await fetchWithRetry(fetchImpl, url, { headers: { accept: "application/json" } }, options);
   if (!res.ok) throw new Error(`Frankfurter request failed: ${res.status} ${res.statusText}`);
-  const data = await res.json();
+  const maxBytes = typeof options.maxResponseBytes === "number" ? options.maxResponseBytes : 1024 * 1024;
+  const text = typeof res.text === "function"
+    ? await res.text()
+    : JSON.stringify(await res.json());
+  if (text.length > maxBytes) throw new Error("Frankfurter response too large");
+  const data = JSON.parse(text);
   if (!data || typeof data.rates !== "object") throw new Error("Unexpected response from Frankfurter");
   cache.set(key, { ts: Date.now(), data });
   while (cache.size > maxSize) cache.delete(cache.keys().next().value);

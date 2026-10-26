@@ -239,3 +239,16 @@ test("parseRateOverride rejects garbage fail-fast", () => {
     assert.match(r.error, /invalid rate/);
   }
 });
+
+test("fetchRates rejects oversized JSON bodies", async () => {
+  const huge = "x".repeat(2 * 1024 * 1024);
+  const fetchImpl = async () => ({
+    ok: true, status: 200, statusText: "OK",
+    headers: { get: () => null },
+    json: async () => ({ base: "USD", rates: { EUR: 0.9 }, _pad: huge }),
+  });
+  clearCache();
+  const err = await fetchRates("USD", ["EUR"], fetchImpl, { cacheTtlMs: 0, maxResponseBytes: 1024 }).catch((e) => e);
+  assert.ok(err instanceof Error);
+  assert.match(err.message, /response too large/i);
+});
