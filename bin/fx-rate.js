@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { fetchRates, formatRates, convert, parsePositiveInt, validateFlags, formatCliError, parseAmounts, parseRateOverride, defaultHistoryCacheDir, listHistoryCache, fetchHistoricalRate, clearCache } from "../src/index.js";
+import { fetchRates, formatRates, convert, parsePositiveInt, validateFlags, formatCliError, parseAmounts, parseRateOverride, defaultHistoryCacheDir, listHistoryCache, fetchHistoricalRate, clearCache, clearHistoryCache } from "../src/index.js";
 
 const args = process.argv.slice(2);
 const json = args.includes("--json");
@@ -80,7 +80,13 @@ Unexpected stack traces indicate a bug worth reporting.
 
 if (clearCacheFlag) {
   const dir = defaultHistoryCacheDir();
-  console.log("cleared");
+  try {
+    await clearHistoryCache(dir);
+    console.log("cleared");
+  } catch (error) {
+    console.error(formatCliError(error));
+    process.exitCode = 1;
+  }
   process.exit(0);
 }
 

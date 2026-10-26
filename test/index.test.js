@@ -22,6 +22,7 @@ import {
   defaultHistoryCacheDir,
   fetchHistoricalRate,
   listHistoryCache,
+  clearHistoryCache,
 } from "../src/index.js";
 
 test("resolveCurrency uppercases and trims", () => {
@@ -269,4 +270,29 @@ test("writeHistoryCache refuses to write through a symlinked cache dir", async (
     await fs.rm(linkDir, { recursive: true, force: true });
     await fs.rm(realDir, { recursive: true, force: true });
   }
+});
+
+test("fetchHistoricalRate rejects oversized JSON bodies", async () => {
+  const huge = "x".repeat(2 * 1024 * 1024);
+  const fetchImpl = async () => ({
+    ok: true, status: 200, statusText: "OK",
+    headers: { get: () => null },
+    json: async () => ({ base: "EUR", date: "2026-10-20", rates: { USD: 1.08 }, _pad: huge }),
+  });
+  const dir = await (await import("node:fs/promises")).mkdtemp((await import("node:path")).join((await import("node:os")).tmpdir(), "fx-hist-big-"));
+  const err = await fetchHistoricalRate("EUR", "2026-10-20", ["USD"], fetchImpl, { cacheDir: dir, maxResponseBytes: 1024 }).catch((e) => e);
+  assert.ok(err instanceof Error);
+  assert.match(err.message, /response too large/i);
+});
+
+
+test("clearHistoryCache removes the directory", async () => {
+  const fs = await import("node:fs/promises");
+  const os = await import("node:os");
+  const path = await import("node:path");
+  const dir = path.join(os.tmpdir(), `fx-clear-${Date.now()}`);
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(path.join(dir, "a.json"), "{}");
+  await clearHistoryCache(dir);
+  await assert.rejects(() => fs.readdir(dir), /ENOENT/);
 });

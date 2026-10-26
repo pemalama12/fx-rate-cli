@@ -225,7 +225,12 @@ export async function fetchHistoricalRate(base, dateStr, targets = ["USD"], fetc
   const url = buildFrankfurterUrl(`/${dateStr}`, { from: base, to: targets.join(",") });
   const res = await fetchWithRetry(fetchImpl, url, { headers: { accept: "application/json" } }, options || {});
   if (!res.ok) throw new Error(`Frankfurter request failed: ${res.status} ${res.statusText}`);
-  const data = await res.json();
+  const maxBytes = typeof options.maxResponseBytes === "number" ? options.maxResponseBytes : 1024 * 1024;
+  const text = typeof res.text === "function"
+    ? await res.text()
+    : JSON.stringify(await res.json());
+  if (text.length > maxBytes) throw new Error("Frankfurter response too large");
+  const data = JSON.parse(text);
   if (!data || typeof data.rates !== "object") throw new Error("No rates for that date");
   const out = {};
   for (const t of targets) {
@@ -251,4 +256,11 @@ export async function listHistoryCache(dir) {
     } catch { continue; }
   }
   return out;
+}
+
+
+export async function clearHistoryCache(dir = defaultHistoryCacheDir()) {
+  const { rm } = await import("node:fs/promises");
+  await rm(dir, { recursive: true, force: true });
+  return { cleared: true };
 }
