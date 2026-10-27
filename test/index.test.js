@@ -304,3 +304,9 @@ test("clearHistoryCache removes the directory", async () => {
   await clearHistoryCache(dir);
   await assert.rejects(() => fs.readdir(dir), /ENOENT/);
 });
+
+test("clearHistoryCache refuses dangerous paths", async () => {
+  await assert.rejects(() => clearHistoryCache(""), /refusing/i);
+  await assert.rejects(() => clearHistoryCache("/"), /refusing/i);
+  await assert.rejects(() => clearHistoryCache("a/../b"), /refusing/i);
+});

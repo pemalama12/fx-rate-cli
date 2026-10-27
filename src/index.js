@@ -261,7 +261,20 @@ export async function listHistoryCache(dir) {
 
 
 export async function clearHistoryCache(dir = defaultHistoryCacheDir()) {
+  const pathMod = await import("node:path");
   const { rm } = await import("node:fs/promises");
-  await rm(dir, { recursive: true, force: true });
+  if (!dir || typeof dir !== "string") throw new Error("refusing to clear an invalid path");
+  if (dir.includes("\u0000")) throw new Error("refusing to clear an invalid path");
+  const segments = dir.split(/[\\/]/);
+  if (segments.includes("..")) throw new Error("refusing to clear a path with traversal segments");
+  const resolved = pathMod.resolve(dir);
+  const home = process.env.HOME || process.env.USERPROFILE || "";
+  if (resolved === "/" || resolved === "\\\\") throw new Error("refusing to clear a protected path");
+  if (home) {
+    const resolvedHome = pathMod.resolve(home);
+    if (resolved === resolvedHome) throw new Error("refusing to clear a protected path");
+    if (resolvedHome.startsWith(resolved + pathMod.sep)) throw new Error("refusing to clear a protected path");
+  }
+  await rm(resolved, { recursive: true, force: true });
   return { cleared: true };
 }
