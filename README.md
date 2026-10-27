@@ -12,6 +12,7 @@ fx-rate EUR USD 100 250
 fx-rate EUR USD --rate=1.1 --amount=100
 fx-rate EUR USD --date=2026-10-20
 fx-rate EUR USD --watch=30 --count=5
+fx-rate EUR USD --jsonl --watch=30 --count=5
 ```
 
 ## Options
@@ -25,10 +26,16 @@ fx-rate EUR USD --watch=30 --count=5
 - `--clear-cache` wipe the on-disk history cache
 - `--dump-cache` list cached historical rates
 - `--json` machine-readable output
+- `--jsonl` one compact JSON object per refresh, taking precedence over `--json`
 - `--version` print version
 - `-h, --help` show help
 
 Cache location: `$XDG_CACHE_HOME/fx-rate-cli/history` (default `~/.cache/fx-rate-cli/history`).
+
+`--jsonl` produces newline-delimited JSON for pipelines, including under `--watch`
+and `--count`. With conversion amounts, each refresh includes a `conversions`
+array of `{ amount, target, value }` records in the same object, including when
+using an offline `--rate` override.
 
 ## Development
 

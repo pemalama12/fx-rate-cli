@@ -2,7 +2,9 @@
 import { fetchRates, formatRates, convert, parsePositiveInt, validateFlags, formatCliError, parseAmounts, parseRateOverride, defaultHistoryCacheDir, listHistoryCache, fetchHistoricalRate, clearCache, clearHistoryCache } from "../src/index.js";
 
 const args = process.argv.slice(2);
-const json = args.includes("--json");
+const jsonl = args.includes("--jsonl");
+const json = args.includes("--json") || jsonl;
+const jsonIndent = jsonl ? undefined : 2;
 const watchArg = args.find((a) => a === "--watch" || a.startsWith("--watch="));
 const watchSecs = watchArg ? parsePositiveInt(watchArg.includes("=") ? watchArg.split("=")[1] : "30", 30) : 0;
 const intervalArg = args.find((a) => a === "--interval" || a.startsWith("--interval="));
@@ -65,6 +67,7 @@ Options:
   --clear-cache    Wipe the on-disk history cache and exit
   --dump-cache     List cached historical rates and exit
   --json           Machine-readable JSON output
+  --jsonl          One compact JSON line per refresh (takes precedence over --json)
   --version        Print version and exit
   -h, --help       Show this help
 
@@ -92,7 +95,7 @@ if (clearCacheFlag) {
 
 if (dumpCacheFlag) {
   const entries = await listHistoryCache(defaultHistoryCacheDir());
-  if (json) console.log(JSON.stringify(entries, null, 2));
+  if (json) console.log(JSON.stringify(entries, null, jsonIndent));
   else if (entries.length === 0) console.log("history cache is empty");
   else for (const e of entries) console.log(`${e.base} on ${e.date}: ${e.currencies.join(", ")}`);
   process.exit(0);
@@ -101,11 +104,17 @@ if (dumpCacheFlag) {
 async function tick() {
   if (date) {
     const data = await fetchHistoricalRate(base, date, targets);
-    if (json) console.log(JSON.stringify(data, null, 2));
+    if (json) console.log(JSON.stringify(data, null, jsonIndent));
     else console.log(`${data.base} on ${data.date}: ${Object.entries(data.rates).map(([k, v]) => `${k}=${v}`).join("  ")}`);
   } else if (rateOverride !== null) {
     const t = targets[0];
-    if (amounts.length > 0) {
+    if (jsonl) {
+      const data = { base, target: t, rate: rateOverride, source: "override" };
+      if (amounts.length > 0) {
+        data.conversions = amounts.map((amount) => ({ amount, target: t, value: convert(amount, rateOverride) }));
+      }
+      console.log(JSON.stringify(data));
+    } else if (amounts.length > 0) {
       for (const a of amounts) console.log(`${a} ${base} = ${convert(a, rateOverride).toFixed(4)} ${t} (override)`);
     } else if (json) {
       console.log(JSON.stringify({ base, target: t, rate: rateOverride, source: "override" }, null, 2));
@@ -114,7 +123,13 @@ async function tick() {
     }
   } else {
     const data = await fetchRates(base, targets);
-    if (amounts.length > 0) {
+    if (jsonl) {
+      if (amounts.length > 0) {
+        data.conversions = targets.filter((target) => data.rates[target] !== undefined).flatMap((target) =>
+          amounts.map((amount) => ({ amount, target, value: convert(amount, data.rates[target]) })));
+      }
+      console.log(JSON.stringify(data));
+    } else if (amounts.length > 0) {
       for (const t of targets) {
         const rate = data.rates[t];
         if (rate === undefined) continue;
