@@ -197,6 +197,14 @@ test("history cache union across currencies", async () => {
   assert.equal(b.rates.USD, 1.08);
 });
 
+test("fetchHistoricalRate rejects invalid dateStr before fetch", async () => {
+  let calls = 0;
+  const fetchImpl = async () => { calls++; return { ok: true, status: 200, statusText: "OK", json: async () => ({}) }; };
+  await assert.rejects(() => fetchHistoricalRate("EUR", "2026-10-20?x=1", ["USD"], fetchImpl), /dateStr must be/);
+  await assert.rejects(() => fetchHistoricalRate("EUR", "../../latest", ["USD"], fetchImpl), /dateStr must be/);
+  assert.equal(calls, 0);
+});
+
 test("historyCacheFile blocks path traversal in base", () => {
   assert.throws(() => historyCacheFile("/tmp/cache", "../etc", "2026-10-26"), /base must be/);
   assert.throws(() => historyCacheFile("/tmp/cache", "eur/../x", "2026-10-26"), /base must be/);

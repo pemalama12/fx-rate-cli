@@ -209,6 +209,7 @@ export function defaultHistoryCacheDir() {
 }
 
 export async function fetchHistoricalRate(base, dateStr, targets = ["USD"], fetchImpl = fetch, options = {}) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateStr || ""))) throw new Error("dateStr must be YYYY-MM-DD");
   base = resolveCurrency(base);
   targets = (Array.isArray(targets) ? targets : [targets]).map(resolveCurrency).filter(Boolean);
   if (targets.length === 0) throw new Error("targets must be a non-empty array");
